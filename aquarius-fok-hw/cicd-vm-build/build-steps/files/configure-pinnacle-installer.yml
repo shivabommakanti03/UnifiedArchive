@@ -1,0 +1,81 @@
+---
+- hosts: pinnacle-server
+  become: true
+  vars:
+    get_settings_cmd_prefix: /root/bin/platform-settings get
+    installer_root: /root/setup/pinnacle-installers/Pinnacle_NRSR02_ECR706_Mainline_ENG_all_2019-01-14-0011
+    installer_mountpoint: /mnt/pinnacle-installer
+    pinnacle_server_files:
+    - /Install_All
+    fileshare_export_files:
+    - /i386/distrib/Install_All
+    - /i386/distrib/Install_Plugin
+    - /i386/distrib/Pinnacle/Pinnacle_16.2_Install
+    - /i386/distrib_AutoPlanning/Install_All
+    - /i386/distrib_AutoSeg/Install_All
+    - /i386/distrib_CALYPSO/Install_All
+    - /i386/distrib_DICOMRT/Install_All
+    - /i386/distrib_DME/Install_All
+    - /i386/distrib_DicomCD/Install_All
+    - /i386/distrib_H_IMXT/Install_All
+    - /i386/distrib_IMRT/Install_All
+    - /i386/distrib_J_IMXT/Install_All
+    fileshare_logical_files:
+    - /i386/distrib_p3pdf/Install_All
+    fileshare_physical_node_files:
+    - /i386/distrib_p3pdf/Plugin/Plugin_Install
+    postgres_server_files:
+    - /Postgres/Install_All
+    - /Postgres/ClearAndReinstall.sh
+  tasks:
+  - name: Create a directory under /mnt to mount Pinnacle ISO
+    file:
+      path: "{{installer_mountpoint}}"
+      state: directory
+  - name: Mount Pinnacle ISO file
+    command: "mount -F hsfs {{installer_root}}.iso {{installer_mountpoint}}"
+  - name: Copy Pinnacle files to pinnacle-installers folder
+    shell: "cd {{installer_mountpoint}}; gtar cf - . | ( cd {{ installer_root }}; gtar xfp -)"
+  - name: Unmout the mount point
+    command: "umount {{installer_mountpoint}}"
+  - name: Delete the directory under mount
+    file:
+      path: "{{installer_mountpoint}}"
+      state: absent
+  - name: Replace SERVERNAME of Install_All script
+    lineinfile:
+      path: "{{ installer_root }}/{{ item }}"
+      regexp: '^SERVERNAME='
+      line: "SERVERNAME=`{{ get_settings_cmd_prefix }} pinnacle_server_hostname`"
+    loop: "{{ pinnacle_server_files }}"
+  - name: Replace SERVERNAME of fileshare_export install scripts
+    lineinfile:
+      path: "{{ installer_root }}/{{ item }}"
+      regexp: '^SERVERNAME='
+      line: "SERVERNAME=`{{ get_settings_cmd_prefix }} fileshare_export_hostname`"
+    loop: "{{ fileshare_export_files }}"
+  - name: Replace SERVERNAME of p3pdf install scripts
+    lineinfile:
+      path: "{{ installer_root }}/{{ item }}"
+      regexp: '^SERVERNAME='
+      line: "SERVERNAME=`{{ get_settings_cmd_prefix }} fileshare_logical_hostname`"
+    loop: "{{ fileshare_logical_files }}"
+  - name: Replace SERVERNAME of p3pdf install scripts
+    lineinfile:
+      path: "{{ installer_root }}/{{ item }}"
+      regexp: '^SERVERNAME='
+      line: "SERVERNAME=`{{ get_settings_cmd_prefix }} fileshare_physical_node_hostname`"
+    loop: "{{ fileshare_physical_node_files }}"
+  - name: Replace SERVERNAME of database install scripts
+    lineinfile:
+      path: "{{ installer_root }}/{{ item }}"
+      regexp: '^SERVERNAME='
+      line: "SERVERNAME=`{{ get_settings_cmd_prefix }} db_server_hostname`"
+    loop: "{{ postgres_server_files }}"
+  - name: Edit CALYPSO Install_All to sleep for 60 seconds after adding CALYPSO account
+    lineinfile:
+      path: "{{ installer_root }}/i386/distrib_CALYPSO/Install_All"
+      regexp: '^sleep 60'
+      insertbefore: 'Installation complete'
+      line: "sleep 60" 
+      

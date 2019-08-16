@@ -1,0 +1,24 @@
+
+
+Vagrant.configure("2") do |config|
+ 
+
+  config.vm.box = "philips/radonc-isro-platform"
+  config.vm.box_url = "http://SErverIP/shared_files/vagrant/philips-radonc-isro-platform.json"
+  config.vm.define "cicdv6"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  #config.vbguest.auto_update = false
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "75776"
+    vb.cpus = "12"
+    vb.linked_clone = true
+    vb.name = "FOK-{{ build_id }}"
+    #vb.name = "virtualP162"
+  end
+  
+  # port forwarding to do normal ssh instead of vagrant ssh
+  config.ssh.username = "root"
+  config.ssh.password = "passsword" 
+  config.vm.network :forwarded_port, guest: 22, host: 2422, id: "ssh", auto_correct: true
+
+end

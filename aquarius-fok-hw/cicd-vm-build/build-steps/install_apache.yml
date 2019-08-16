@@ -1,0 +1,23 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  vars:
+    httpd_conf_patch: files/httpd.patch
+    httpd_conf_path: /etc/apache2/2.4/httpd.conf
+  tasks:
+  - name: Install apache24 and openssl
+    pkg5: name={{item}}
+    with_items:
+         - /web/server/apache-24
+         - /web/server/apache-24/module/apache-ssl
+  - name: Apply patch to the httpd.conf file
+    patch:
+      src: "{{ httpd_conf_patch }}"
+      dest: "{{ httpd_conf_path }}"
+      backup: yes
+  - name: Place all required files to target VM
+    include: install_apache_placefiles.yml 
+  - name: Ensure apache service is not running
+    service:
+      name: apache24
+      state: stopped

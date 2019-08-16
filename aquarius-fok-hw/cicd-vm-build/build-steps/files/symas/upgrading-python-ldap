@@ -1,0 +1,8 @@
+All commands run as root:
+a) Install gcc: pkg install gcc
+b) Set up a link for cc: cd /usr/bin; ln -s ../gcc/4.8/bin/gcc cc
+c) Get the python-ldap source: mkdir ~/tmp;cd ~/tmp;wget https://github.com/python-ldap/python-ldap/archive/python-ldap-3.2.0.tar.gz
+d) extract the source: tar xfz python-ldap-3.2.0.tar.gz
+e) cd to the source dir: cd python-ldap-python-ldap-3.2.0
+f) Make it so python can find the OpenLDAP header files: export CPPFLAGS="-I/usr/include/openldap"
+g) Build python-ldap: python setup.py install

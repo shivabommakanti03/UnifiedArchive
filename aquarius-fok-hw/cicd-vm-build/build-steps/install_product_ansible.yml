@@ -1,0 +1,20 @@
+---
+
+- hosts: cicd-vm-build-instance
+  become: true
+  tasks:
+
+  - name: make ansible diectory
+    file:
+      path: /root/setup/ansible
+      state: directory
+      mode: '0500'
+      owner: root
+      group: root
+
+  - name: copy product_ansible directory
+    copy:
+      src: ../../product-ansible/
+      dest: /root/setup/ansible/
+      owner: root
+      group: root

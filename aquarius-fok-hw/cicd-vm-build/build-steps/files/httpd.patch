@@ -1,0 +1,65 @@
+--- httpd.conf	Fri Jun 14 05:06:11 2019
++++ httpd.conf.new	Fri Jun 14 05:03:28 2019
+@@ -55,7 +55,8 @@
+ # prevent Apache from glomming onto all bound IP addresses.
+ #
+ #Listen 12.34.56.78:80
+-Listen 80
++#Listen 80
++Listen 443
+ 
+ #
+ # Dynamic Shared Object (DSO) Support
+@@ -101,7 +102,7 @@
+ #LoadModule cache_module libexec/mod_cache.so
+ #LoadModule cache_disk_module libexec/mod_cache_disk.so
+ #LoadModule cache_socache_module libexec/mod_cache_socache.so
+-#LoadModule socache_shmcb_module libexec/mod_socache_shmcb.so
++LoadModule socache_shmcb_module libexec/mod_socache_shmcb.so
+ #LoadModule socache_dbm_module libexec/mod_socache_dbm.so
+ #LoadModule socache_memcache_module libexec/mod_socache_memcache.so
+ #LoadModule watchdog_module libexec/mod_watchdog.so
+@@ -122,8 +123,8 @@
+ #LoadModule sed_module libexec/mod_sed.so
+ #LoadModule charset_lite_module libexec/mod_charset_lite.so
+ #LoadModule deflate_module libexec/mod_deflate.so
+-#LoadModule xml2enc_module libexec/mod_xml2enc.so
+-#LoadModule proxy_html_module libexec/mod_proxy_html.so
++LoadModule xml2enc_module libexec/mod_xml2enc.so
++LoadModule proxy_html_module libexec/mod_proxy_html.so
+ LoadModule mime_module libexec/mod_mime.so
+ #LoadModule ldap_module libexec/mod_ldap.so
+ LoadModule log_config_module libexec/mod_log_config.so
+@@ -140,13 +141,13 @@
+ LoadModule setenvif_module libexec/mod_setenvif.so
+ LoadModule version_module libexec/mod_version.so
+ #LoadModule remoteip_module libexec/mod_remoteip.so
+-#LoadModule proxy_module libexec/mod_proxy.so
++LoadModule proxy_module libexec/mod_proxy.so
+ #LoadModule proxy_connect_module libexec/mod_proxy_connect.so
+ #LoadModule proxy_ftp_module libexec/mod_proxy_ftp.so
+-#LoadModule proxy_http_module libexec/mod_proxy_http.so
++LoadModule proxy_http_module libexec/mod_proxy_http.so
+ #LoadModule proxy_fcgi_module libexec/mod_proxy_fcgi.so
+ #LoadModule proxy_scgi_module libexec/mod_proxy_scgi.so
+-#LoadModule proxy_wstunnel_module libexec/mod_proxy_wstunnel.so
++LoadModule proxy_wstunnel_module libexec/mod_proxy_wstunnel.so
+ #LoadModule proxy_ajp_module libexec/mod_proxy_ajp.so
+ #LoadModule proxy_balancer_module libexec/mod_proxy_balancer.so
+ #LoadModule proxy_express_module libexec/mod_proxy_express.so
+@@ -156,7 +157,7 @@
+ #LoadModule session_dbd_module libexec/mod_session_dbd.so
+ LoadModule slotmem_shm_module libexec/mod_slotmem_shm.so
+ #LoadModule slotmem_plain_module libexec/mod_slotmem_plain.so
+-#LoadModule ssl_module libexec/mod_ssl.so
++LoadModule ssl_module libexec/mod_ssl.so
+ #LoadModule dialup_module libexec/mod_dialup.so
+ #LoadModule lbmethod_byrequests_module libexec/mod_lbmethod_byrequests.so
+ #LoadModule lbmethod_bytraffic_module libexec/mod_lbmethod_bytraffic.so
+@@ -532,5 +533,6 @@
+ <IfModule ssl_module>
+ SSLRandomSeed startup builtin
+ SSLRandomSeed connect builtin
++SSLSessionCache shmcb:/var/apache2/2.4/logs/ssl_cache_shm(512000)
+ </IfModule>
+ 

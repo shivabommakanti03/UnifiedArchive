@@ -1,0 +1,27 @@
+---
+- hosts: cicd-vm-build-archive
+  vars:
+    build_id: "{{lookup('env', 'BUILD_SLUG')}}"
+    vm_build_root_prefix: "/home/vmowner/cicd-image-build/fok-ci"
+    vm_build_root: "{{vm_build_root_prefix}}/tmp/{{build_id}}"
+  tasks:
+  - name: Move artifacts to archive host
+    local_action: command scp {{item}} {{ansible_user}}@{{ansible_host}}:{{ build_archive_path }}
+    with_fileglob:
+      - "{{vm_build_root}}/{{build_id}}.*"
+  - name: Identify files to prune on archive host
+    find:
+      paths: "{{build_archive_path}}"
+      age: 5d
+      age_stamp: mtime
+      recurse: yes
+    register: old_file_list
+  - name: List of files to delete
+    debug:
+      msg: "Filename={{item.path}}"
+    loop: "{{old_file_list.files}}"
+  - name: Delete older files
+    file:
+      path: "{{item.path}}"
+      state: absent
+    loop: "{{old_file_list.files}}"

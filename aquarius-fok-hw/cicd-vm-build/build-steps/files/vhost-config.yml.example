@@ -1,0 +1,44 @@
+---
+# This is the yml file which is being called by add-vhost.yml to generate vhost configuratios
+# file which contains all of virtualhost definations along with it's associated tunnel definations
+# and it's SSL certs and keys information.
+
+
+#
+#
+# vhost_name: is the attribute which is used to define the host name of the server
+# Do not use <> to define the hostname of the server. Define the hostname as below defined example manner
+#
+# vhost_name: pinnacle-server 
+#
+#
+
+vhost_name: <PINNACLE_SERVER_HOSTNAME>
+
+
+# Each virtualhost looks for it's own ssl certs and keys for the security standards
+# and when you start apache it will know that it has to pick up the ssl certs and keys 
+# from the below mentioned locations.
+# Make sure to enter your ssl certs and keys path in below mentioned attributes as exampled.
+
+# vhost_ssl_cert: /root/setup/isro-platform/certs/pinnacle-server.crt
+# vhost_ssl_key: /root/setup/isro-platform/certs/pinnacle-server.key
+
+vhost_ssl_cert: <PATH_TO_SSL_CERT>
+vhost_ssl_key: <PATH_TO_SSL_KEY>
+
+
+extra_directives:
+
+
+# Tunnel: The job of the tunnel is, it will let apache know that you are wanting to run your
+# perticular (app1 or app2) on perticular port and a self assigned URL.
+#
+# tunnels:
+#  - { frontend_prefix: /app1.1, backend_url: "https://localhost:8023", extra_pass_parameters: "max=20 ttl=120 retry=300" }
+#  - { frontend_prefix: /app1.2, backend_url: "https://localhost:8024" }
+
+        
+tunnels:
+ - { frontend_prefix: <URL_PREFIX>, backend_url: <BACKEND_URL>, extra_pass_parameters: <EXTRA_PASS_PARAMETERS> }
+ - { frontend_prefix: <URL_PREFIX>, backend_url: <BACKEND_URL> } 

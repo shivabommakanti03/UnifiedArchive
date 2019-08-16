@@ -1,0 +1,33 @@
+---
+- hosts: pinnacle-server
+  become: true
+  tasks:
+  - name: Run GLKSiteInfo script as p3rtp
+    command: su - p3rtp -c "/usr/local/adacnew/PinnacleStatic/bin/i386/GLKSiteInfo -SiteName 'Pros Dev Box'"
+  - name: Create a temporary license directory
+    tempfile:
+      state: directory
+      suffix: _license_dir
+    register: license_dir
+  - name: Extract the license zip to ansible created temporary license directory
+    debug:
+      msg: "got: {{item}}"
+    with_fileglob:
+      - "/root/setup/platform-installers/pinn-*{{ansible_default_ipv4.address}}.zip"
+  - name: Extract the license to license directory
+    unarchive:
+      src: "{{ item }}"
+      dest: "{{ license_dir.path }}"
+    with_fileglob:
+      - "/root/setup/platform-installers/pinn-*{{ansible_default_ipv4.address}}.zip"
+  - name: Change the permissions of license directory
+    file:
+      path: "{{ license_dir.path }}"
+      mode: 0775
+      recurse: true
+  - name: Run the license script as p3rtp
+    command: "su - p3rtp -c {{item}}"
+    args:
+      chdir: "{{ license_dir.path }}"
+    with_fileglob:
+      - "{{ license_dir.path }}/*.sh" 

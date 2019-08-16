@@ -1,0 +1,22 @@
+<VirtualHost *:443>
+        ServerName {{ vhost_name }}
+        ServerAlias 127.0.0.1
+        ErrorLog /var/apache2/2.4/logs/error_log
+        SSLEngine on
+        SSLProxyEngine on
+        SSLProxyVerify none
+        SSLProxyCheckPeerCN off
+        SSLProxyCheckPeerName off
+        SSLProxyCheckPeerExpire off
+        SSLProtocol +TLSv1.2
+        SSLCipherSuite ALL:!NULL:!ADH:!EXPORT:!SSLv2:!SSLv3:!LOW:!RC4:!3DES:+HIGH
+        SSLCertificateFile {{ vhost_ssl_cert }}
+        SSLCertificateKeyFile {{ vhost_ssl_key }}
+        {{ extra_directives }}
+        ProxyPreserveHost on
+{% for tunnel in tunnels | list %}
+   ProxyPass {{ tunnel.frontend_prefix }} {{ tunnel.backend_url }} {{ tunnel.extra_pass_parameters | default('') }} 
+   ProxyPassReverse {{ tunnel.frontend_prefix }} {{ tunnel.backend_url }} 
+{% endfor %}
+</VirtualHost>
+

@@ -1,0 +1,19 @@
+--- 
+- hosts: pinnacle-server
+  become: true
+  vars:
+    pinnacle_media_basename: Pinnacle_NRSR02_ECR706_Mainline_ENG_all_2019-01-14-0011
+  tasks:
+  - name: Install Pinnacle 16.2.1
+    async: 1000
+    poll: 10
+    expect:
+      command: /root/setup/pinnacle-installers/{{pinnacle_media_basename}}/Install_All
+      timeout: 800
+      responses:
+        Selection: "I"
+        Hit: ""
+        conflicting files: "y"
+        continue with the installation: "y"
+        Change: "n"
+   

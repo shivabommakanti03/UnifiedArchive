@@ -1,0 +1,34 @@
+---
+- hosts: pinnacle-server
+  become: true
+  tasks:
+  - name: Install Dicom server
+    command: /etc/init.d/ADACDicomServer install
+  - name: Start Dicom server
+    command: /etc/init.d/ADACDicomServer start
+  - name: Configure DICOM RT Export
+    command: /usr/local/adacnew/PinnacleStatic/bin/common/DICOMAddSCP -p -r -d ADACRTP_SCP {{ansible_hostname}} 104
+  - name: Verisy DICOM Echo check runs succesfully
+    command: /usr/local/adacnew/PinnacleStatic/bin/common/DICOMEcho ADACRTP_SCP
+  - name: Remove LC lines from StartPinnacle script
+    lineinfile:
+      dest: /usr/local/adacnew/bin/StartPinnacle
+      state: absent
+      line: "{{ item }}"
+    with_items:
+      - "LC_CTYPE=${LANG}"
+      - "LC_COLLATE=${LANG}"
+      - "LC_MONETARY=${LANG}"
+      - "LC_MESSAGES=${LANG}"
+  - name: Add LC lines to StartPinnacle script in appropriate place
+    lineinfile:
+      dest: /usr/local/adacnew/bin/StartPinnacle
+      insertbefore: "set PINN_HELP default value"
+      line: "{{ item }}"
+    with_items:
+      - "LC_CTYPE=${LANG}"
+      - "LC_COLLATE=${LANG}"
+      - "LC_MONETARY=${LANG}"
+      - "LC_MESSAGES=${LANG}"
+  - name: Finalize Pinnacle Installation
+    command: /usr/local/adacnew/PinnacleStatic_16.2/bin/common/FinalizeInstall

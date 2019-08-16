@@ -1,0 +1,215 @@
+#!/bin/bash
+# File: SolarisFlashCleanup
+main() {
+	> /var/mail/root  ## Clear out any stale mail for root.
+
+	# Fix ipnodes
+	#rm /etc/inet/ipnodes
+	#ln -s /etc/inet/hosts /etc/inet/ipnodes
+
+	# Shut off sendmail
+        # Changed second instance of "5.10" to "5.11"
+	if [ "`uname -r`" = "5.10" ] || [ "`uname -r`" = "5.11" ]; then
+		svcadm disable svc:/network/smtp:sendmail 
+		pkill sendmail
+	fi
+
+	# Add hostname with trailing period to hostname to hosts file
+	# this shuts sendmail up.
+	HOSTNAME=`hostname`
+	cat /etc/inet/hosts | /usr/xpg4/bin/grep -F ${HOSTNAME}. >/dev/null
+	if [ $? = 1 ]; then 
+		echo ""
+		echo "Updating /etc/inet/hosts file ..."
+		echo ""
+
+        sed -e "s/${HOSTNAME}/${HOSTNAME}   ${HOSTNAME}./" /etc/inet/hosts > /tmp/hosts.$$
+
+		if [ -f /tmp/hosts.$$ ]; then
+			mv /tmp/hosts.$$ /etc/inet/hosts
+		fi
+	fi
+	### End of hostname stuff.
+
+	#
+	# YP Stuff (make sure it's not active
+	#
+
+	# If the ypserver is running, kill it
+	#/usr/lib/netsvc/yp/ypstop
+
+	# Clean these out if there.  IP address change causes trouble
+	#rm -rf /var/yp/*.time /var/yp/yppinn /var/yp/binding/yppinn /var/yp/securenets
+ 
+
+	#
+	# Add entry in pinn.rhost.master file
+	# This is currenlty needed by the per-user login profile
+	echo `hostname` > /export/local/common/etc/rhost.pinn.master # Recreate it if it's there.
+
+# *********** WE KNOW NOTHING ABOUT WHETHER CLUSTER IS RUNNING
+# *********** Philips may need to take care of all this
+	# Restart automounter.
+	if [ "`uname -r`" = "5.8" ]; then
+		automount
+	elif [ "`uname -r`" = "5.10" ] || [ "`uname -r`" = "5.11" ]; then
+		#
+		# If SunCluster has been installed, leave the autofs alone.
+		#
+		if [ ! -f /etc/cluster/release ]; then
+			svcadm disable svc:/system/filesystem/autofs:default
+			svcadm enable svc:/system/filesystem/autofs:default
+		fi
+
+	fi
+	#
+	# Turn off un-needed services.
+	#
+	if [ "`uname -r`" = "5.10" ] || [ "`uname -r`" = "5.11" ]; then
+		echo "Disabling un-needed services ..."
+		services disable
+		
+		echo "Enabling required services ..."
+		svcadm enable svc:/network/nfs/status:default
+		svcadm enable svc:/network/nfs/nlockmgr:default
+		svcadm enable svc:/network/nfs/cbd:default
+		svcadm enable svc:/network/nfs/mapid:default
+		svcadm enable svc:/network/nfs/client:default
+		svcadm enable svc:/network/nfs/server:default
+		svcadm enable svc:/network/nfs/rquota:default
+
+	fi	 
+# END of Philips stuff we have not looked at
+# **************************
+
+	# 
+	# Update the default NFS stuff in /etc/default/nfs
+	#
+	if [ ! -f /etc/default/nfs.0 ]; then
+
+  		cp /etc/default/nfs /etc/default/nfs.0
+
+		if [ $? = 1 ]; then
+	    		echo ""
+	    		echo "Updating /etc/default/nfs file ..."
+	    		echo ""
+
+    			sed -e "s/NFSD_SERVERS=16/NFSD_SERVERS=256/g" \
+ 			-e "s/LOCKD_SERVERS=20/LOCKD_SERVERS=256/g" \
+			-e "s/GRACE_PERIOD=90/GRACE_PERIOD=10/g" /etc/default/nfs.0 > /etc/default/nfs
+  		fi
+
+	fi
+
+	#
+	# Enable strong TCP sequence number generation
+	#
+	awk '/TCP_STRONG_ISS=/ { $1 = "TCP_STRONG_ISS=2" }; { print }' /etc/default/inetinit > /etc/default/inetinit.new 
+	mv /etc/default/inetinit.new /etc/default/inetinit
+	pkgchk -f -n -p /etc/default/inetinit
+	
+	#
+	# Remove dummy p3rtp user
+	#
+#	userdel p3rtp
+
+	#
+	# Set automaster to self by default
+ 	#
+	#printf "\nSetting default autofs master ...\n"
+    #    for NAME in `ls /etc/auto_*`
+    #    do
+    #       if [ -f ${NAME}.0 ]; then
+    #          sed -e "s/localhost/${HOSTNAME}/" ${NAME}.0 > ${NAME}
+    #       fi
+    #    done
+	#	printf "\nPushing NIS Maps... May take a few moments ...\n"
+	#	cd /var/yp && make
+	#	echo processing ... ; sleep 5
+
+	# ******* BEGINNING OF SYMAS OPENLDAP SETUP *********
+
+	# We must disable NSCD as NSCD is utterly broken and breaks user creation
+	svcadm disable name-service/cache
+
+	# Change to Symas platform directory
+	cd /root/setup/platform-installers/symas/
+	# Install Symas OpenLDAP
+	#	**** WE ASSUME the latest Symas OpenLDAP Gold Installer is in place! ****
+	mkdir tmp
+	/usr/bin/gtar -xzf Symas-OpenLDAP-gold-64*.tgz -C tmp
+	cd tmp/Symas-OpenLDAP-*
+	yes all|/sbin/pkgadd -a /root/setup/platform-installers/symas/response.file -d symas-openldap-gold.i86pc_64-2*.pkg
+	cd ../..
+	# Cleanup tmp directory
+	rm -rf tmp
+	# Add the OpenLDAP Gold binaries to the $PATH environment variable
+	PATH=/opt/symas/bin:${PATH}
+	/usr/bin/gsed -i -e 's/PATH=\/root\/bin/PATH=\/opt\/symas\/bin:\/root\/bin/' /root/.profile
+
+	# Import slapd.d (cn=config) configuration
+	mkdir /opt/symas/etc/openldap/slapd.d
+	slapadd -F /opt/symas/etc/openldap/slapd.d -n 0 -l philips-config.ldif
+	cp symas-openldap-philips.conf /opt/symas/etc/openldap/symas-openldap.conf
+	# Create the example.hosts in the /opt/symas/etc/openldap directory
+	# *** PHILIPS PAY ATTENTION ... you'll have to script the next line to
+	#     Get it right for each customer
+	# *** This line WAS for testing as is commented out
+	# echo i2p.vat.ms.philips.com >> /opt/symas/etc/openldap/example.hosts
+	# *** It has been changed to use the first parameter to the script
+	# *** IS MANDATORY -- we test for it at the beginning and fail if missing.
+	if [ x"$symasfoo" != "x" ]; then
+	  echo $symasfoo  >> /opt/symas/etc/openldap/example.hosts
+	fi
+	# Setup basic DIT for dc=philips,dc=com
+	sleep 10
+	slapadd -b dc=philips,dc=com -q -l philips-init.ldif
+	# Start solserver
+	svcadm clear svc:/network/ldap/slapd:default
+	svcadm enable svc:/network/ldap/slapd:default
+	# Add new users to database
+	#ldapadd -x -H ldap://localhost -D cn=admin,dc=philips,dc=com -w secret -f philips-users.ldif
+	# ******* END OF SYMAS OPENLDAP SETUP *********
+
+	/sbin/ldapclient manual \
+	    -a credentialLevel=proxy \
+	    -a authenticationMethod=simple \
+	    -a defaultSearchBase=dc=philips,dc=com \
+	    -a domainName=philips.com \
+	    -a defaultServerList=127.0.0.1 \
+	    -a proxyDN=cn=proxy-user,dc=philips,dc=com \
+	    -a proxyPassword=secret2 \
+	    -a adminDN=cn=admin,dc=philips,dc=com \
+	    -a adminPassword=secret \
+	    -a enableShadowUpdate=true \
+	    -a objectClassMap=shadow:shadowAccount=posixaccount \
+	    -a serviceSearchDescriptor=passwd:ou=users,dc=philips,dc=com \
+	    -a serviceSearchDescriptor=shadow:ou=users,dc=philips,dc=com \
+	    -a serviceSearchDescriptor=group:ou=groups,dc=philips,dc=com \
+	    -a serviceSearchDescriptor=auto_local:automountMapName=auto_local,dc=philips,dc=com \
+	    -a serviceSearchDescriptor=auto_direct:automountMapName=auto_direct,dc=philips,dc=com \
+	    -a serviceSearchDescriptor=auto_home:automountMapName=auto_home,dc=philips,dc=com \
+	    -a serviceSearchDescriptor=auto_master:automountMapName=auto_master,dc=philips,dc=com
+
+	# Configure PAM to auth to LDAP for logins
+	/usr/bin/gsed -i -e 's/auth required\t\tpam_unix_auth.so.1/auth binding\t\tpam_unix_auth.so.1 server_policy\
+auth required\t\tpam_ldap.so.1/' /etc/pam.d/login
+	/usr/bin/gsed -i -e 's/auth required\t\tpam_unix_auth.so.1/auth binding\t\tpam_unix_auth.so.1 server_policy\
+auth required\t\tpam_ldap.so.1/' /etc/pam.d/other
+
+}  ## End of Main.
+
+# ***** The Fully Qualified Domain Name (FQDN) of the Active Directory
+# ***** Domain Controller is necessary for setting up LDAP
+# ***** If it is not specified as the parameter to this script, we
+# ***** do not process any of the script.
+if [ $# -eq 0 ]; then
+    echo "Skipping Active Directory integration as no AD host was provided"
+else
+	echo "Will integrate with AD server $1"
+	symasfoo=$1
+fi
+
+LOG_FILE=/root/.setup/ServerSetup.`date '+%m%d%y-%H:%M:%S'`
+main 2>&1 | tee -a $LOG_FILE
+shutdown -g0 -y -i6

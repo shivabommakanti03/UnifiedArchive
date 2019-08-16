@@ -1,0 +1,15 @@
+#!/bin/bash
+cd /root/setup/ve-ansible
+source /root/setup/ve-ansible/bin/activate
+cd /root/setup/playbooks/
+FILE=$(basename $1)
+if [ -f "/root/setup/playbooks/${FILE}.yml" ]; then
+    echo "$FILE command exists as playbook. Executing..."
+else
+    echo "Error: $FILE command does not exist. Exiting."
+    exit 1
+fi
+
+shift
+ansible-playbook ${FILE}.yml $*
+exit $?

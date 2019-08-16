@@ -1,0 +1,38 @@
+
+# #################################################################################
+# Exceed TurboX Connection Node
+# #################################################################################
+# Sample response.etxcn
+# #################################################################################
+#
+# Sample response file usage:
+# sudo ./install -s response.etxcn
+#
+# root's privilege is needed to ensure that init boot script can be properly installed
+# response file contains Key=value on each line
+# The keys are pre-defined, the values must be provided in the response file
+# All "are you sure" questions will be answered with "y"
+
+
+install.etxcn.ListenPort=5510
+install.etxcn.StartNow=1
+install.etxcn.AllowMigrate=0
+install.etxcn.MigrateFromThisFolder=/path/to/oldCNfolder
+install.etxcn.SaveConnectionNodeIdToFile=1
+install.etxcn.CreateETXProxyUser=1
+install.etxcn.CreateETXXstartUser=1
+install.service.createservice=1
+install.service.bBootStart=1
+install.register.bAutoRegister=1
+install.register.r_serverurl=https://{{ansible_default_ipv4.address}}:8443
+install.register.r_overridehostname=
+install.register.r_proxy=1
+install.register.r_auth=1
+install.register.r_appscan=0
+install.register.r_firstdisplay=11
+install.register.r_altnameserver=
+install.register.r_altnameclient=
+install.register.r_additionaloptions=
+###  Instead of using the following value you can set ETXSVRRESTTOKEN=tokenstring prior to launching install script
+install.register.r_resttoken=
+

@@ -1,0 +1,45 @@
+---
+- hosts: cicd-vm-build-host
+  vars:
+    build_id: "{{lookup('env', 'BUILD_SLUG')}}"
+    vm_build_root_prefix: "/home/vmowner/cicd-image-build/fok-ci"
+    vm_build_root: "{{vm_build_root_prefix}}/tmp/{{build_id}}"
+    base_box_name: philips/radonc-isro-platform
+  tasks:
+  - name: Print build info
+    debug:
+      msg: "{{item}} = {{lookup('vars', item)}}"
+    loop: ['build_id', 'vm_build_root']
+
+  - name: Ensure build root is new
+    stat:
+      path: "{{vm_build_root}}"
+    register: st
+    failed_when: "st.stat.exists"
+
+  - name: Create build root
+    file:
+      path: "{{vm_build_root}}"
+      state: directory
+
+  - name: Set build_id
+    copy: content={{build_id}} dest={{ vm_build_root }}/build_id
+
+  - name: Ensure base box is known to Vagrant
+    command: vagrant box list
+    register: vm_box_list_result
+    failed_when: "base_box_name not in vm_box_list_result.stdout"
+    changed_when: false
+
+  - name: Place Vagrantfile
+    template: src=Vagrantfile dest={{vm_build_root}}/
+  
+  - name: Start VM in build root
+    command: vagrant up chdir="{{ vm_build_root }}"
+    register: vm_box_status_result
+    async: 6000
+    poll: 30
+
+  - name: Modify VM
+    command: vagrant ssh -c "touch /tmp/build-id-{{build_id}}" chdir="{{ vm_build_root }}"
+  

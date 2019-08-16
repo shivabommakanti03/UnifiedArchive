@@ -1,0 +1,32 @@
+  - name: Creating isro required directories
+    file:
+      path: "{{ item }}"
+      state: directory
+      mode: 0755
+    with_items:
+      - '/root/setup/isro-platform'
+        #      - '/root/setup/isro-platform/certs'
+      - '/root/setup/isro-platform/vhost-def'
+      - '/root/setup/playbooks/files'
+  - name: Move vhost playbook to pinnacle-server
+    copy:
+      src: files/add-vhost.yml
+      dest: /root/setup/playbooks/add-vhost.yml
+  - name: Move jinja template to pinnacle-server
+    copy:
+      src: files/vhost.dist.conf.j2
+      dest: /root/setup/playbooks/files/vhost.dist.conf.j2
+  - name: Move host config files to vhost-def
+    copy:
+      src: "{{ item }}" 
+      dest: /root/setup/isro-platform/vhost-def
+    with_items:
+      - 'files/vhost-config.yml.example'
+      - 'files/vhost-config.yml.isro-defaults'
+  - name: Move ansible hosts and ansible.cfg to target VM
+    copy:
+      src: "{{ item }}"
+      dest: /root/setup/playbooks/
+    with_items:
+      - 'files/hosts'
+      - 'files/ansible.cfg'

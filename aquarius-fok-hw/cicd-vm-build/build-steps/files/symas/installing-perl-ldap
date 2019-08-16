@@ -1,0 +1,25 @@
+To install perl-ldap (The Net::LDAP perl module) for use with add_pinn_user.pl
+All commands run as root
+
+1) mkdir ~/tmp
+2) wget https://cpan.metacpan.org/authors/id/E/ET/ETHER/Module-Install-1.19.tar.gz
+3) wget https://cpan.metacpan.org/authors/id/G/GB/GBARR/Authen-SASL-2.16.tar.gz
+4) wget https://cpan.metacpan.org/authors/id/G/GB/GBARR/Convert-ASN1-0.27.tar.gz
+5) wget https://cpan.metacpan.org/authors/id/M/MA/MARSCHAP/perl-ldap-0.66.tar.gz
+6) tar xfz Module-Install-1.19.tar.gz
+7) tar xfz Authen-SASL-2.16.tar.gz
+8) tar xfz Convert-ASN1-0.27.tar.gz
+9) tar xfz perl-ldap-0.66.tar.gz
+10) cd Module-Install-1.19
+11) perl Makefile.PL
+12) make && make install
+13) cd ../Authen-SASL-2.16
+14) perl Makefile.PL
+15) make && make install
+16) cd ../Convert-ASN1-0.27
+17) perl Makefile.PL
+18) make && make install
+19) cd ../perl-ldap-0.66
+20) perl Makefile.PL
+21) Answer "N" to all the questions about additional modules
+22) make && make install

@@ -1,0 +1,24 @@
+---
+# tasks file for system-base
+
+- name: Make /root/bin
+  file:
+    path: /root/bin
+    state: directory
+    mode: '0755'
+
+- name: nsswitch.conf
+  template:
+    src: templates/etc/nsswitch.conf
+    dest: /etc/nsswitch.conf
+    owner: root
+    group: sys
+    mode: 0644
+    force: yes
+  register: nsswitch
+
+- include: solaris.yml
+  when: ansible_distribution == "Solaris" and "ansible_distribution_version" is version('11', '>=')
+
+- set_fact:
+    system_base_has_run: True

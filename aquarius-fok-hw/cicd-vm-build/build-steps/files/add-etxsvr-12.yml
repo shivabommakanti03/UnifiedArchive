@@ -1,0 +1,30 @@
+---
+- hosts: pinnacle-server
+  become: true
+  tasks:
+  - name: Create a directory for etxsvr
+    file:
+      path: /opt/etxsvr/
+      state: directory
+  - name: Extract the etxsvr package
+    command: gtar -zxvf /root/setup/platform-installers/etxsvr-12.0.0.5410-solaris-x64.tar.gz
+    args:
+      chdir: /opt/etxsvr/
+  - name: Remove old filters folder 
+    file: 
+      path: /opt/etxsvr/etxsvr-12.0/lib/webapp/WEB-INF/classes/com/opentext/connectivity/filters
+      state: absent
+  - name: Extract filters tar file
+    command: gtar xvf /root/setup/platform-installers/filters.tar.gz
+    args:
+      chdir: /opt/etxsvr/etxsvr-12.0/lib/webapp/WEB-INF/classes/com/opentext/connectivity/
+  - name: Disable HTTP dashboard
+    command: /opt/etxsvr/etxsvr-12.0/bin/etxsvr config dashboardHttpEnable=0
+  - name: Disable HTTP admin
+    command: /opt/etxsvr/etxsvr-12.0/bin/etxsvr config adminHttpEnable=0
+  - name: Enable bootstart for ETX server
+    command: /opt/etxsvr/etxsvr-12.0/bin/etxsvr bootstart enable
+  - name: Restart ETX server service
+    async: 200
+    poll: 10
+    command: /opt/etxsvr/etxsvr-12.0/bin/etxsvr restart

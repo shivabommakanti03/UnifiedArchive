@@ -1,0 +1,70 @@
+--- 
+- hosts: pinnacle-server
+  become: true
+  tasks: 
+  - name: Fix pinnacle - p3pdf
+    lineinfile:
+      dest: /export/local/i386/adacnew/p3pdf/DisplayBundleGPDF
+      state: present
+      regexp: '(\s*)gpdf --geometry'
+      line: '\1gpdf $file'
+      backrefs: yes
+      backup: yes
+  - name: Replace SERVERNAME of Install_All script
+    lineinfile:
+      path: "/usr/local/adacnew/PinnacleStatic/bin/common/{{ item }}"
+      regexp: '^SERVERNAME='
+      line: "SERVERNAME=`/root/bin/platform-settings get pinnacle_server_hostname`"
+    with_items:
+      - DICOMAddSCP
+      - DICOMRemoveSCP
+      - DICOMConfigPinnacle
+      - PinnacleInfo
+      - ConfigPostgres.sh
+      - GLKLicenseInfo
+  - name: Install pre-configured ScannerDB
+    copy:
+      src: /root/setup/pinnacle-installers/ScannerDB.dist
+      dest: /PrimaryPatientData/NewPatients/ScannerDB
+      owner: p3rtp
+      group: pinnacle
+      mode: 0644
+  - name: Change ownership of DICOM folders
+    file:
+      path: /files/network/DICOM
+      mode: 0777
+  - name: Create a folder for DicomCD
+    file:
+      path: /files/network/DICOM/CD
+      state: directory
+      mode: 0777
+  - name: Install ADACDicomServer
+    command: /etc/init.d/ADACDicomServer install
+  - name: Start Dicom server
+    command: /etc/init.d/ADACDicomServer start
+  - name: Configure loopback DICOM export node for ADACRTP_SCP
+    command: /usr/local/adacnew/PinnacleStatic/bin/common/DICOMAddSCP -p -r -d ADACRTP_SCP {{ansible_hostname}} 104
+  - name: Verisy DICOM Echo check runs succesfully
+    command: /usr/local/adacnew/PinnacleStatic/bin/common/DICOMEcho ADACRTP_SCP
+  - name: Remove LC lines from StartPinnacle script
+    lineinfile:
+      dest: /usr/local/adacnew/bin/StartPinnacle
+      state: absent
+      line: "{{ item }}"
+    with_items:
+      - "LC_CTYPE=${LANG}"
+      - "LC_COLLATE=${LANG}"
+      - "LC_MONETARY=${LANG}"
+      - "LC_MESSAGES=${LANG}"
+  - name: Add LC lines to StartPinnacle script in appropriate place
+    lineinfile:
+      dest: /usr/local/adacnew/bin/StartPinnacle
+      insertbefore: "set PINN_HELP default value"
+      line: "{{ item }}"
+    with_items:
+      - "LC_CTYPE=${LANG}"
+      - "LC_COLLATE=${LANG}"
+      - "LC_MONETARY=${LANG}"
+      - "LC_MESSAGES=${LANG}"
+  - name: Finalize Pinnacle Installation
+    command: /usr/local/adacnew/PinnacleStatic_16.2/bin/common/FinalizeInstall

@@ -1,0 +1,23 @@
+---
+- hosts: pinnacle-server
+  become: true
+  tasks:
+  - name: Create a directory for etxsvr
+    file:
+      path: /opt/etxcn/
+      state: directory
+  - name: Extract the etxcn package
+    command: gtar -zxvf /root/setup/platform-installers/etxcn-12.0.0.5410-solaris-x64.tar.gz
+    args:
+      chdir: /opt/etxcn/
+  - name: Generate server-specific response file
+    template:
+      src: /root/setup/platform-installers/etxcn12.response.template
+      dest: /root/setup/platform-installers/etxcn12.response
+  - name: Install etxcn-12
+    expect:
+      command: /opt/etxcn/etxcn/bin/install -s /root/setup/platform-installers/etxcn12.response
+      responses:
+        username: "root"
+        password: "prosr19t"
+

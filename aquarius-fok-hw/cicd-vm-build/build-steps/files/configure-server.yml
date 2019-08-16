@@ -1,0 +1,33 @@
+---
+- hosts: pinnacle-server
+  become: true
+  tasks:
+  - name: Fix NIS script
+    lineinfile:
+      path: /root/bin/nis_share_nfs
+      state: absent
+      regexp: 'exit 1'
+  - name: Run nis script
+    shell: /root/bin/nis_share_nfs
+  - name: Run nfs script to replace nfs_nis_security in place
+    shell: /root/bin/nfs_nis_security
+  - name: Add p3rtp User
+    expect:
+      command: /root/bin/add_pinn_user -P
+      responses:
+        New: p3rtp123
+        Re-enter: p3rtp123
+  - name: Change ownership of PrimaryPatientData
+    file:
+      path: /PrimaryPatientData/
+      owner: p3rtp
+      group: pinnacle
+      recurse: yes
+  - name: Remove Sunray Installers
+    file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - '/root/setup/srs_5.4.4.0-Solaris_11plus.i386'
+      - '/root/setup/sros_11.1.5.0'
+      - '/root/setup/srs_5.4.4.0-Solaris_11plus.i386'

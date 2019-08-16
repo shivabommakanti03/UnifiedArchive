@@ -1,0 +1,37 @@
+---
+# vars file for ldap-server
+
+ldap_tgz_path: /root/setup/platform-installers/symas/Symas-OpenLDAP-gold-64-2.4.47.3.tgz
+remote_auth_mapping: localhost
+
+# The password in the following block as well as the passwords for the
+# individual users should be moved to a vault. For now, for testing, this can
+# remain as is.
+ldap_uri: ldap://localhost
+ldap_bind_dn: cn=admin,dc=philips,dc=com
+ldap_bind_pw: secret
+
+philips_users:
+  cn=pinnmgr,ou=users,dc=philips,dc=com:
+    objectClass:
+      - top
+      - person
+      - organizationalPerson
+      - inetOrgPerson
+    attributes:
+      cn: pinnmgr
+      sn: pinnmgr
+      description: ADAC Service
+      userPassword: "{SSHA}liVCWXFTEYDbs+C37U8NU6jaPnBg/eK3" # c2VjcmV0
+
+  cn=openldap,ou=users,dc=philips,dc=com:
+    objectClass:
+      - top
+      - person
+      - organizationalPerson
+      - inetOrgPerson
+    attributes:
+      cn: openldap
+      sn: openldap
+      description: OpenLDAP User
+      userPassword: "{SSHA}liVCWXFTEYDbs+C37U8NU6jaPnBg/eK3" # c2VjcmV0

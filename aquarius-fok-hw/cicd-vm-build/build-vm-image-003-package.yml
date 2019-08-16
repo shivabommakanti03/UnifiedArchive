@@ -1,0 +1,51 @@
+---
+- hosts: cicd-vm-build-host
+  vars:
+    build_id: "{{lookup('env', 'BUILD_SLUG')}}"
+    vm_build_root_prefix: "/home/vmowner/cicd-image-build/fok-ci"
+    vm_build_root: "{{vm_build_root_prefix}}/tmp/{{build_id}}"
+  tasks:
+  - name: Print build info
+    debug:
+      msg: "{{item}} = {{lookup('vars', item)}}"
+    loop: ['build_id', 'vm_build_root']
+ 
+  - name: Shutdown VM
+    command: vagrant ssh -c "init 5" chdir="{{ vm_build_root }}"
+  - name: Wait for shutdown
+    shell: vagrant status chdir="{{ vm_build_root }}"
+    register: result
+    until: result.stdout.find("poweroff") != -1
+    retries: 20
+    delay: 10
+  - name: Export VM
+    command: vagrant package --output {{build_id}}.box chdir="{{ vm_build_root }}"
+    async: 6000
+    poll: 30
+
+  - name: Power up again
+    command: vagrant up chdir="{{ vm_build_root }}"
+  - name: Make UAR
+    command: vagrant ssh -c "archiveadm create /tmp/{{build_id}}.uar" chdir="{{ vm_build_root }}"
+
+  - name: Fetch UAR
+    command:  lftp -c 'set sftp:connect-program "ssh -a -x -T -o Compression=no"; open -u root,prosr19t -p 2422 sftp://127.0.0.1; pget -n 4 /tmp/{{build_id}}.uar' chdir="{{ vm_build_root }}"
+
+  - name: Shutdown VM again
+    command: vagrant ssh -c "init 5" chdir="{{ vm_build_root }}"
+
+  - name: Wait for shutdown again
+    shell: vagrant status chdir="{{ vm_build_root }}"
+    register: result
+    until: result.stdout.find("poweroff") != -1
+    retries: 20
+    delay: 10
+
+  - name: Remove VM
+    command: vagrant destroy --force chdir="{{ vm_build_root }}"
+
+  - name: Generate checksum of the UAR
+    shell: sha256sum --tag {{build_id}}.* > {{build_id}}.sha256sum
+    args:
+      chdir: "{{ vm_build_root}}"
+

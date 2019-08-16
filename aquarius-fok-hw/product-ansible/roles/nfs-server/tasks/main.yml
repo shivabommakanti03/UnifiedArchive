@@ -1,0 +1,9 @@
+---
+# tasks file for nfs-server
+
+- include_role:
+    name: system-base
+  when: system_base_has_run is not defined or not system_base_has_run
+
+- include: solaris.yml
+  when: ansible_distribution == "Solaris" and "ansible_distribution_version" is version('11', '>=')

@@ -1,0 +1,24 @@
+---
+- hosts: cicd-vm-host
+  gather_facts: false
+  vars:
+    dirs_to_push:
+    - admin-vm
+    - cicd-vm-deploy
+    - cicd-vm-build
+    - product-ansible
+  tasks:
+  - name: Show list
+    debug:
+      var: dirs_to_push
+  - name: Show items
+    debug:
+      var: item
+    loop: "{{ dirs_to_push }}"
+  - name: Push folders
+    synchronize:
+      src: "../{{item}}"
+      dest: "/home/vmowner/cicd-image-build/fok-ci"
+      delete: yes
+      recursive: yes
+    loop: "{{dirs_to_push}}"

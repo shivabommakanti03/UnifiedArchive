@@ -1,0 +1,45 @@
+---
+- hosts: pinnacle-server
+  become_user: root
+  vars:
+    vhost_config_file: /root/setup/isro-platform/vhost-def/vhost-config.yml.isro-defaults
+  tasks:
+  - name: checking if var is loaded
+    debug:
+      var: vhost_config_file
+  - name: Testing included vars
+    include_vars:
+      file: "{{ vhost_config_file }}"
+      #  - name: Changing ownership and modes of certs
+      #file:
+      #path: /root/setup/isro-platform/certs/
+      #state: directory
+      #owner: webservd
+      #mode: 0500
+  - name: Ensure ssl cert and key files exist and have correct permissions
+    file:
+      path: "{{ item }}"
+      owner: webservd
+      mode: 0600
+    with_items:
+      - "{{ vhost_ssl_cert }}"
+      - "{{ vhost_ssl_key }}"
+  - name: Generate vhost files using .j2
+    template:
+      src: files/vhost.dist.conf.j2
+      dest: /etc/apache2/2.4/conf.d/vhost-{{ vhost_name }}.conf
+  - name: Check syntax errors of apache
+    command: /usr/apache2/2.4/bin/apachectl -t
+  - name: Enable apache service to generate it's PID file
+    command: svcadm enable apache24
+  # - name: Change the ownership of apache PID file
+  #   file:
+  #     path: /var/run/apache2/2.4/
+  #     owner: webservd
+  #     group: bin
+  #     recurse: yes
+  - name: Restart apache service
+    service:
+      name: apache24
+      state: restarted
+

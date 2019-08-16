@@ -1,0 +1,10 @@
+---
+- import_playbook: build-steps/install_build_id.yml
+- import_playbook: build-steps/install_root_ssh_key.yml
+- import_playbook: build-steps/install_libs.yml
+- import_playbook: build-steps/install_apache.yml
+- import_playbook: build-steps/install_setup_scripts.yml
+- import_playbook: build-steps/install_pinnacle_installer.yml
+- import_playbook: build-steps/install_etx_installer.yml
+- import_playbook: build-steps/install_ldap_installer.yml
+- import_playbook: build-steps/install_product_ansible.yml

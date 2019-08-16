@@ -1,0 +1,80 @@
+---
+# Solaris specific system-base tasks
+
+- name: Purge old email
+  copy:
+    content: ""
+    dest: /var/mail/root
+    force: yes
+    owner: root
+    group: mail
+    mode: 0660
+
+- name: /etc/inet/hosts
+  template:
+    src: templates/etc/inet/hosts
+    dest: /etc/inet/hosts
+    owner: root
+    group: sys
+    mode: 0644
+    force: yes
+
+- name: /etc/inet/ipnodes
+  file:
+    src: /etc/inet/hosts
+    dest: /etc/inet/ipnodes
+    force: yes
+    state: link
+
+- name: /etc/hosts
+  file:
+    src: /etc/inet/hosts
+    dest: /etc/hosts
+    force: yes
+    state: link
+
+- name: disable SMF services
+  service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop: "{{ disable_solaris_services }}"
+  register: disable_service
+  failed_when:
+    - disable_service is failed
+    - "'Pattern \\'' + item + '\\' doesn\\'t match any instances' not in disable_service.msg"
+
+- name: disable inet services
+  command: inetadm -d {{ item }}
+  loop:
+    - cde-calendar-manager
+  changed_when: False
+
+- name: remove yp crud
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_fileglob:
+    - "/var/yp/*.time"
+    - "/var/yp/yppinn"
+    - "/var/yp/binding/yppinn"
+    - "/var/yp/securenets"
+
+- name: import nsswitch
+  shell: >
+    nscfg import -f svc:/system/name-service/switch:default \
+    && sleep 1 \
+    && svcadm refresh name-service/switch
+  when: nsswitch.changed
+
+- name: Enable strong TCP sequence number generation
+  lineinfile:
+    path: /etc/default/inetinit
+    regexp: '^TCP_STRONG_ISS='
+    line: 'TCP_STRONG_ISS=2'
+  register: inetinit
+
+- name: Reboot when inetinit changes
+  reboot:
+    pre_reboot_delay: 5
+  when: inetinit.changed

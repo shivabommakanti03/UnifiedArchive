@@ -1,0 +1,76 @@
+---
+- hosts: cicd-vm-host
+  become_user: vmowner
+  tasks:
+  - shell: /usr/bin/uptime
+    register: result
+  - name: Verify AI_MASTER_VM_DNS running
+    command: vboxmanage showvminfo "AI_MASTER_VM_DNS"
+  - name: Verify cicd-build-fok is not running
+    command: vboxmanage showvminfo "cicd-build-fok"
+  - name: Assigning a static MACADDRESS to VM
+    command: vboxmanage modifyvm "cicd-build-fok" --macaddress1="080027BBCF14"
+- hosts: ai-master-vm
+  become_user: root
+  vars:
+   cicd_servicename: solaris11_3_21-i386
+   cicd_manifest_path: /root/cicd_ai_manifest.xml
+   cicd_iso: /root/sol-11_3_21_5_0-ai-x86.iso
+   cicd_build_MAC: 080027BBCF14
+   cicd_manifest_name: cicd_build_vm
+   cicd_manifest_template: cicd_manifest.xml.j2
+  tasks:
+  - name: Printing Configuration variables
+    debug:
+      var: item
+    loop:
+      - cicd_servicename
+      - cicd_manifestpath
+      - cicd_iso
+      - cicd_build_MAC
+      - cicd_manifest_template
+  - name: Check if there are any services created
+    command: installadm list -mv
+  - name: Remove the services that are already created
+    command: installadm delete-service {{ cicd_servicename }} -r -y
+  - name: disable dhcp on the AI_MASTER
+    command: installadm set-server -M
+  - name: Remove dhcpd4.conf file
+    file: path='/etc/inet/dhcpd4.conf' state=absent
+  - name: Enable dns service
+    command: svcadm enable svc:/network/dns/multicast:default
+  - name: Set the range of IPs on Clients
+    command: installadm set-server -i 192.168.27.6 -c 20 -m
+  - name: Create service based on ISO
+    command: installadm create-service -s {{ cicd_iso }} -y -b install=true
+  - name: Copy ai_manifest for current build
+    template:
+      src: "{{ cicd_manifest_template }}"
+      dest: "{{ cicd_manifest_path }}"
+  - name: Create manifest using sysconfig
+    command: installadm create-manifest -m {{cicd_manifest_name}} -n {{cicd_servicename}} -c mac={{cicd_build_MAC}} -f {{cicd_manifest_path}}
+  - name: Remove dhcpd4.conf file
+    file: path='/etc/inet/dhcpd4.conf' state=absent
+  - name: Touch an empty dhcpd4.conf file
+    file:
+      path: "/etc/inet/dhcpd4.conf"
+      state: touch
+  - name: Copy working dhcpd4 conf file
+    command: cp /etc/inet/dhcpd4.conf.working /etc/inet/dhcpd4.conf
+  - name: Restart dhcp
+    command: svcadm restart svc:/network/dhcp/server:ipv4
+- hosts: cicd-vm-host
+  become_user: vmowner
+  tasks:
+  - name: Verify AI_MASTER_VM_DNS running
+    command: vboxmanage showvminfo "AI_MASTER_VM_DNS"
+  - name: Verify cicd-build-fok is not running
+    command: vboxmanage showvminfo "cicd-build-fok"
+  - name: Start cicd-build-fok vm
+    command: vboxmanage startvm "cicd-build-fok"
+- hosts: localhost
+  become_user: vmowner
+  tasks:
+  - shell: /usr/bin/uptime
+    register: result
+

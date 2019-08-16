@@ -1,0 +1,255 @@
+#!/bin/bash
+
+##
+## Setup Disk Drives in Known Configs
+##
+
+PATH=/usr/bin:/bin:/sbin:/usr/sbin:/usr/sfw/bin:/opt/sfw/bin:/usr/ucb;export PATH
+
+# global variables
+ENCRYPT=false
+ROOTDRIVE=none
+INITSTRING="undefined"
+FSNAME=""
+
+function setfsname () {
+    #CHECK FOR DUPLICATE -a FLAG'S
+    if [[ ${FSNAME} == "" ]]; then
+        FSNAME=$1
+    else
+        printf "ERROR: too many -a flags, provide one per script execution.\n"
+        exit 255
+    fi
+}
+
+function usage() {
+
+cat << ENDOFTEXT
+
+    usage: $ppdsetup [-e] [-h] [-a <file_system_name>]
+
+    No flags will run normal unencrypted ppdsetup
+
+    First usage:
+      -e        Encrypts the files systems created during this run
+      -h        Help, prints usage
+      -a        Creats an additional file system under ppd_pool with name
+        provided by caller
+
+ENDOFTEXT
+    exit 1
+}
+
+while getopts eha: OPT ; do
+    case $OPT in
+        a)  setfsname $OPTARG
+            ;;
+        e)  ENCRYPT=true
+            ;;
+        h)  usage
+            ;;
+        \?) usage
+            ;;
+    esac
+done
+
+printf "FSNAME: ${FSNAME}\n"
+printf "ENCRYPT: ${ENCRYPT}\n"
+
+. /root/bin/pros-common-functions
+force_you_are_root
+
+function getdriveinfo () {
+
+    RECOGNIZEDDRIVES=(`format </dev/null | grep -v "configured" | egrep "c[0-9]" | awk {'print $2'}`)
+    set INITDRIVES
+    NUMDRIVES=${#RECOGNIZEDDRIVES[*]}
+    ROOTDRIVE=(`zpool status rpool </dev/null | egrep "c[0-9]" | awk {'print $1'}`) # Create array
+
+    if [[ "${ROOTDRIVE}" == "none" || "${ROOTDRIVE}" == "" ]]; then
+        printf "Couldn't determine root drive!  Please call Philips Customer Support.\n"
+        exit 255
+    fi
+
+    # Figure out what drive(s) are available to use for PPD.
+    if [[ ${NUMDRIVES} -gt 1  ]]; then
+        DRIVE=""
+        for DRIVE in ${RECOGNIZEDDRIVES[@]}; do
+            USED=""
+            DRIVE=${DRIVE}
+            TEMPDRIVE=${DRIVE}s0
+            printf "\nChecking drive: ${DRIVE}\n"
+            ISUSED=false
+            for USED in ${ROOTDRIVE[@]}; do
+                if [[ "${USED}" == "${TEMPDRIVE}" ]]; then
+                    printf "  Ejecting used drive\n"
+                    ISUSED=true
+                fi
+            done
+                if [[ "$ISUSED" == "false" ]]; then
+                    if [[ "${INITDRIVES}" == "none" ]]; then
+                        INITDRIVES=""
+                    fi
+                    INITDRIVES=( ${DRIVE} ${INITDRIVES[@]} )
+                fi
+        done
+    fi
+} ## getrootdrive
+
+function createzfs () {
+
+    POOLNAME=$1
+    ZFSNAME=$2
+    CRYPTO_FLAGS=""
+    ZFS_KEY_NAME=`echo "${ZFSNAME}" | sed "s/[^a-zA-Z0-9_-]/_/g"`
+    ZFS_KEY_FULL_PATH="NA"
+
+    if [[ "$ENCRYPT" == "true" ]]; then
+        ZFS_KEY_FULL_PATH="/root/setup/zfs_keys/${ZFS_KEY_NAME}"
+        mkdir -p /root/setup/zfs_keys/
+        chown -R root:root /root/setup/zfs_keys/
+        if [ -f "${ZFS_KEY_FULL_PATH}" ]; then
+            printf "ERROR: Conflicting key names, pick a different file system name to avoid conflict. exiting\n"
+            exit 255
+        fi
+        pktool genkey keystore=file outkey=${ZFS_KEY_FULL_PATH} keytype=aes keylen=256
+        if [[ $? -ne 0 ]]; then
+            printf "\n\nERROR: pktool has failed to create encryption key, exiting.\n\n"
+            exit 255
+        fi
+        CRYPTO_FLAGS="-o compression=lz4 -o encryption=aes-256-ccm -o keysource=raw,file://${ZFS_KEY_FULL_PATH}"
+    fi
+    zfs create ${CRYPTO_FLAGS} ${POOLNAME}/${ZFSNAME}
+    if [[ $? -ne 0 ]]; then
+        printf "\n\nERROR: zfs create has failed, exiting.\n\n"
+        exit 255
+    fi
+    printf "Created new filesystem...\n"
+    printf "Filesystem: ${ZFSNAME}\n"
+    printf "ZFS Encryption and Compression: ${ENCRYPT}\n"
+    printf "ZFS Key Location: ${ZFS_KEY_FULL_PATH}\n"
+}
+
+function initdatadrive () {
+    # ensure no old pools exist
+    zpool import | grep ppd_pool >/dev/null
+    if [[ $? -eq 0 ]]; then
+        printf "\n\nERROR: ppd_pool already exists.\n\n"
+        exit 255
+    fi
+    ##
+    ## Initialize the PPD_POOL
+    ##
+
+    if [[ "${INITSTRING}" != "rpool" ]]; then
+        printf "\nCreating ppd_pool zpool on ${INITSTRING}.\n"
+        zpool create -f -m /zfs ppd_pool ${INITSTRING}
+        printf "\nCreating PrimaryPatientData ...\n"
+        createzfs ppd_pool PrimaryPatientData
+        mkdir -p /zfs/PrimaryPatientData/Patients /zfs/PrimaryPatientData/NewPatients
+        mkdir -p /zfs/PrimaryPatientData/BetaPatients /zfs/PrimaryPatientData/PhilipsBetaPatients
+        printf "\nCreating export ...\n"
+        createzfs ppd_pool export
+        printf "\nCreating files ...\n"
+        createzfs ppd_pool files
+        printf "\nCopying /export to /ppd_pool/export ...\n"
+        rsync -ax /export/. /zfs/export
+        rsync -ax /export/home/. /zfs/export/home
+        printf "\nCopying /files to ppd_pool/files ...\n"
+        rsync -ax /files/. /zfs/files
+        printf "\nAdjusting mountpoints ...\n"
+        unshareall
+        zfs unshare rpool/export/home
+        zfs unshare rpool/export
+        zfs umount -f rpool/export/home
+        zfs umount -f rpool/export
+        zfs set mountpoint=/export.off rpool/export
+        zfs set canmount=off rpool/export/home
+        zfs set canmount=off rpool/export
+        rm -rf /files /PrimaryPatientData
+        zfs set mountpoint=/PrimaryPatientData ppd_pool/PrimaryPatientData
+        zfs set mountpoint=/files ppd_pool/files
+        zfs set mountpoint=/export ppd_pool/export
+        zfs set quota=30g ppd_pool/files
+        zfs set quota=100g ppd_pool/export
+        mkdir -p /files/network/DICOM/CD
+    fi
+
+    if [[ "${INITSTRING}" == "rpool" ]]; then
+
+    ##
+    ## If there's only 1 disk in the system, we need to change things
+    ## slightly.  Create an rpool/files filesystem and an
+    ## rpool/PrimaryPatientData filesystem.  This allows the
+    ## NFS sharing to work properly.
+    ##
+        unshareall
+        printf "\nCopying /files to rpool/files ...\n"
+        createzfs rpool files
+        mkdir -p /rpool/files/network/DICOM/CD
+        rsync -ax /files/. /rpool/files
+        rm -rf  /files
+        zfs set mountpoint=/files rpool/files
+        printf "\nSetting up PrimaryPatientData ...\n"
+        createzfs rpool PrimaryPatientData
+        rm -rf /PrimaryPatientData
+        mkdir -p /rpool/PrimaryPatientData/Patients /rpool/PrimaryPatientData/NewPatients
+        mkdir -p /rpool/PrimaryPatientData/BetaPatients /rpool/PrimaryPatientData/PhilipsBetaPatients
+        zfs set mountpoint=/PrimaryPatientData rpool/PrimaryPatientData
+        shareall
+    fi
+
+    chmod -R 775 /PrimaryPatientData
+    chown -R root:pinnacle /PrimaryPatientData
+}
+
+#
+# Main Section
+#
+getdriveinfo
+if [[ ${#INITDRIVES[@]} -eq 0  ]]; then
+    INITSTRING="rpool"
+    DATA_POOL_NAME="rpool"
+    echo "INITDRIVES: rpool"
+    echo "DATA_POOL_NAME: ${DATA_POOL_NAME}"
+fi
+if [[ ${#INITDRIVES[@]} -eq 1 ]]; then
+    INITSTRING=${INITDRIVES[0]}
+    DATA_POOL_NAME="ppd_pool"
+    echo "INITDRIVES: ${INITDRIVES[@]}"
+    echo "DATA_POOL_NAME: ${DATA_POOL_NAME}"
+fi
+if [[ ${#INITDRIVES[@]} -gt 1 ]]; then
+    printf "\nDetected multiple drives, defaulting to first available.\n"
+    INITSTRING=${INITDRIVES[0]}
+    DATA_POOL_NAME="ppd_pool"
+    echo "INITDRIVES: ${INITDRIVES[@]}"
+    echo "DATA_POOL_NAME: ${DATA_POOL_NAME}"
+fi
+
+IS_PPD_CONFIGURED=false
+
+zfs list ${DATA_POOL_NAME}/PrimaryPatientData &>/dev/null
+if [[ $? -eq 0 ]]; then
+    IS_PPD_CONFIGURED=true
+fi
+
+if [ "$IS_PPD_CONFIGURED" == "false" ]; then
+    initdatadrive
+fi
+
+if [ "$IS_PPD_CONFIGURED" == "true" ] && [ "${FSNAME}" == "" ]; then
+    printf "ERROR: ppd_pool already exists. Exiting.\n"
+    exit 255
+fi
+
+if [[ ! ${FSNAME} == "" ]]; then
+
+    if [ -d "/${FSNAME}" ]; then
+        printf "ERROR: File system ${FSNAME} already exists, exiting\n"
+        exit 255
+    fi
+    printf "Creating additional file system with name ${FSNAME} under data pool ${DATA_POOL_NAME}\n"
+    createzfs ${DATA_POOL_NAME} ${FSNAME}
+    zfs set mountpoint=/${FSNAME} ${DATA_POOL_NAME}/${FSNAME}
+fi

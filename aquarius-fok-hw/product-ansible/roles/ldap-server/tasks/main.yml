@@ -1,0 +1,182 @@
+---
+# tasks file for ldap-server
+
+- include_role:
+    name: system-base
+  when: system_base_has_run is not defined or not system_base_has_run
+
+
+- name: make tmp for ldap
+  file:
+    path: /root/symas/tmp
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+  register: symas_tmp
+
+- name: extract ldap packages
+  unarchive:
+    src: "{{ ldap_tgz_path }}"
+    dest: "{{ symas_tmp.diff.after.path }}"
+    remote_src: yes
+    list_files: yes
+    extra_opts: [--strip-components=1]
+  register: ldap_tgz_result
+
+- include: solaris.yml
+  when: ansible_distribution == "Solaris" and "ansible_distribution_version" is version('11', '>=')
+
+- include: enterprise_linux.yml
+  when: ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux"
+
+- name: make slapd.d and ldif directories
+  file:
+    path: /opt/symas/etc/openldap/{{ item }}/
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+  loop:
+    - ldif
+    - slapd.d
+
+- name: make philips-config.ldif file
+  copy:
+    src: files/opt/symas/etc/openldap/ldif/philips-config.ldif
+    dest: /opt/symas/etc/openldap/ldif/philips-config.ldif
+    owner: root
+    group: root
+    mode: 0600
+  register: philips-config_ldif
+
+- name: check for philips-config changes
+  shell: slapadd -F /opt/symas/etc/openldap/slapd.d -n 0 -l philips-config.ldif -u -v
+  environment:
+    PATH: /opt/symas/bin:{{ ansible_env.PATH }}
+  args:
+    chdir: /opt/symas/etc/openldap/ldif/
+  register: test_philips_config
+  failed_when:
+    - test_philips_config.rc > 0
+    - "'attribute type undefined' not in test_philips_config.stderr"
+  changed_when: >
+    test_philips_config.rc > 0
+    and (
+      "'checksum error' in test_philips_config.stderr"
+      or "'attribute type undefined' in test_philips_config.stderr"
+    )
+
+- name: slapadd philips-config.ldif
+  shell: slapadd -F /opt/symas/etc/openldap/slapd.d -n 0 -l philips-config.ldif
+  environment:
+    PATH: /opt/symas/bin:{{ ansible_env.PATH }}
+  args:
+    chdir: /opt/symas/etc/openldap/ldif/
+  when: test_philips_config.changed
+
+- name: copy symas-openldap.conf
+  copy:
+    src: files/opt/symas/etc/openldap/symas-openldap.conf
+    dest: /opt/symas/etc/openldap/symas-openldap.conf
+    owner: root
+    group: root
+    mode: 0644
+
+- name: example.hosts
+  template:
+    src: templates/opt/symas/etc/openldap/example.hosts
+    dest: /opt/symas/etc/openldap/example.hosts
+    owner: root
+    group: root
+    mode: 0644
+
+- name: make philips-init.ldif file
+  copy:
+    src: files/opt/symas/etc/openldap/ldif/philips-init.ldif
+    dest: /opt/symas/etc/openldap/ldif/philips-init.ldif
+    owner: root
+    group: root
+    mode: 0600
+  register: philips_init_ldif
+
+- name: check for philips-init changes
+  shell: diff <(slapcat) philips-init.ldif 2>&1 |grep -v "^<" |egrep -v "^[0-9]+,"
+  environment:
+    PATH: /opt/symas/bin:{{ ansible_env.PATH }}
+  args:
+    chdir: /opt/symas/etc/openldap/ldif/
+  register: test_philips_init
+  failed_when: test_philips_init.rc > 1
+  changed_when: test_philips_init.stdout != ""
+
+- name: slapadd philips-init.ldif
+  shell: slapadd -F /opt/symas/etc/openldap/slapd.d -c -b dc=philips,dc=com -q -l philips-init.ldif
+  environment:
+    PATH: /opt/symas/bin:{{ ansible_env.PATH }}
+  args:
+    chdir: /opt/symas/etc/openldap/ldif/
+  register:
+    slapadd_philips_init
+  failed_when: >
+    slapadd_philips_init.rc > 0
+    and "MDB_KEYEXIST" not in slapadd_philips_init.stderr
+  when: >
+    test_philips_init.changed
+    or philips_init_ldif.changed
+
+# Note the original ServerSetup script ran a clear then enable. The service
+# module will do both.
+# See https://github.com/ansible/ansible/blob/v2.7.10/lib/ansible/modules/system/service.py#L1421
+- name: start and enable slapd
+  service:
+    name: svc:/network/ldap/slapd:default
+    state: started
+    enabled: yes
+
+# - name: make philips-users.ldif file
+#   copy:
+#     src: files/opt/symas/etc/openldap/ldif/philips-users.ldif
+#     dest: /opt/symas/etc/openldap/ldif/philips-users.ldif
+#     owner: root
+#     group: root
+#     mode: 0600
+#   register: philips_users_ldif
+#
+# The password for the ldapadd commands (and passwords for any other users)
+# should really be kept in a vault. If the password is needed for running a
+# command like below, then the command should either take as an argument a
+# temporary password file that the command can read or find some other way like
+# using the expect module. For now this will have to do.
+# - name: test add ldap users
+#   shell: ldapadd -n -x -H ldap://localhost -D cn=admin,dc=philips,dc=com -w secret -f philips-users.ldif
+#   environment:
+#     PATH: /opt/symas/bin:{{ ansible_env.PATH }}
+#   args:
+#     chdir: /opt/symas/etc/openldap/ldif/
+#   register: test_philips_users
+#   failed_when:
+#     - test_philips_users.rc > 0
+#     - "'attribute type undefined' not in test_philips_users.stderr"
+#   changed_when: >
+#     test_philips_users.rc > 0
+#     and (
+#       test_philips_users.stderr is regex("^added: ")
+#       or test_philips_users.stderr is regex("^removed: ")
+#     )
+
+- name: add ldap users
+  ldap_entry:
+    bind_dn: "{{ ldap_bind_dn }}"
+    bind_pw: "{{ ldap_bind_pw }}"
+    server_uri: "{{ ldap_uri }}"
+    state: present
+    dn: "{{ item.key }}"
+    objectClass: "{{ item.value['objectClass'] }}"
+    attributes: "{{ item.value['attributes'] }}"
+      # cn: "{{ item.value['attributes']['cn'] }}"
+      # sn: "{{ item.value['attributes']['sn'] }}"
+      # description: "{{ item.value['attributes']['description'] }}"
+      # userPassword: "{{ item.value['attributes']['userPassword'] }}"
+  loop:
+    "{{ philips_users|dict2items }}"

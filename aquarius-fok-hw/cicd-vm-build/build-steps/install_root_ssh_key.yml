@@ -1,0 +1,18 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  tasks:
+  - name: Install OpenSSH
+    pkg5: name=openssh 
+  - name: Set OpenSSH as default
+    shell: pkg set-mediator --no-backup-be -I openssh ssh
+  - name: Generate a new key for root
+    command: ssh-keygen -b 2048 -t rsa -f /root/.ssh/id_rsa -q -N ""
+    args: 
+      creates: /root/.ssh/id_rsa
+  - name: Append authorized_keys for root
+    shell: cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+  - name: Append known_hosts for root
+    shell: ssh-keyscan localhost >>  /root/.ssh/known_hosts
+  - name: Append known_hosts for root 127.0.0.1
+    shell: ssh-keyscan 127.0.0.1 >>  /root/.ssh/known_hosts

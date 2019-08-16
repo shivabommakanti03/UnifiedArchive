@@ -1,0 +1,20 @@
+dn: cn=pinnmgr,ou=users,dc=philips,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+cn: pinnmgr
+sn: pinnmgr
+description: ADAC Service
+userPassword:: c2VjcmV0
+
+dn: cn=openldap,ou=users,dc=philips,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+cn: openldap
+sn: openldap
+description: OpenLDAP User
+userPassword:: c2VjcmV0
+

@@ -1,0 +1,8 @@
+--- 
+- hosts: pinnacle-server
+  become: true
+  tasks:
+  - name: Generate self-signed cert for apache
+    command: openssl req -subj '/CN={{ansible_fqdn}}/O=Pinnacletest/C=US' -new -newkey rsa:2048 -sha512 -days 365 -nodes -x509 -keyout {{ansible_fqdn}}key.pem -out {{ansible_fqdn}}cert.chained.pem
+    args:
+      chdir: /etc/apache2/2.4/

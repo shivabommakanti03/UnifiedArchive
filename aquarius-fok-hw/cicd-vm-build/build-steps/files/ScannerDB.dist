@@ -1,0 +1,69 @@
+Scanner ={
+  Name = "Pinnacle Format";
+  Media = "Network";
+  ScannerCommand = "/usr/local/adacnew/bin/StartPinnExec $SCANNER_STATIC/bin/$SCANNER_ARCH/volume_editor";
+  AlternateScannerCommand = "StartImageEditor";
+  ScannerCommandArguments = "";
+  ScannerStatic = "/usr/local/adacnew/PinnacleStatic";
+  IODevice ={
+    IODeviceID = 0;
+    WriteSpeed = 0;
+    Name = "";
+    Host = "";
+    Device = "";
+    NoRewindDevice = "";
+    Description = "";
+    Capacity = 0;
+    Mode = "Input";
+    Type = "Streaming";
+    Format = "Tape";
+    AutoDeleteDICOM = 0;
+  };
+};
+Scanner ={
+  Name = "DICOM3File";
+  Media = "Network";
+  ScannerCommand = "$SCANNER_STATIC/bin/$SCANNER_ARCH/CT_DICOM3File";
+  AlternateScannerCommand = "";
+  ScannerCommandArguments = "";
+  ScannerStatic = "/usr/local/adacnew/VolumeImportStatic";
+  IODevice ={
+    IODeviceID = 0;
+    WriteSpeed = 0;
+    Name = "";
+    Host = "";
+    Device = "/autoDataSets/DICOM";
+    NoRewindDevice = "";
+    Description = "";
+    Capacity = 0;
+    Mode = "Input";
+    Type = "Streaming";
+    Format = "Tape";
+    AutoDeleteDICOM = 0;
+  };
+};
+Scanner ={
+  Name = "DICOM3CD";
+  Media = "Network";
+  ScannerCommand = "$SCANNER_STATIC/bin/$SCANNER_ARCH/CT_DICOM3CD";
+  AlternateScannerCommand = "";
+  ScannerCommandArguments = "";
+  ScannerStatic = "/usr/local/adacnew/VolumeImportStatic";
+  IODevice ={
+    IODeviceID = 0;
+    WriteSpeed = 0;
+    Name = "";
+    Host = "";
+    Device = "/autoDataSets/DICOM/CD";
+    NoRewindDevice = "";
+    Description = "";
+    Capacity = 0;
+    Mode = "Input";
+    Type = "Streaming";
+    Format = "Tape";
+    AutoDeleteDICOM = 0;
+  };
+};
+
+/* zQ */
+

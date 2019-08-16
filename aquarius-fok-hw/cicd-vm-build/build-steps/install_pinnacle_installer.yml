@@ -1,0 +1,29 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  vars:
+    pinnacle_media_basename: Pinnacle_NRSR02_ECR706_Mainline_ENG_all_2019-01-14-0011
+    media_base_url: http://ServerIP/shared_files/isos
+  tasks:
+  - name: Create directory for Pinnacle on target
+    file:
+      path: /root/setup/pinnacle-installers/{{item}}
+      state: directory
+    with_items:
+         - "{{ pinnacle_media_basename }}"
+  - name: Download Pinnacle ISO file
+    get_url:
+      url: "{{ media_base_url }}/{{ pinnacle_media_basename }}.iso"
+      dest: /root/setup/pinnacle-installers/
+  - name: Move pinnacle playbooks to pinnacle-server
+    copy:
+      src: "{{ item }}"
+      dest: /root/setup/playbooks/
+    loop:
+      - files/configure-pinnacle-installer.yml
+      - files/add-pinnacle.yml 
+      - files/configure-pinnacle-postinstall.yml
+  - name: Move ScannerDB file to target
+    copy:
+      src: files/ScannerDB.dist
+      dest: /root/setup/pinnacle-installers/ScannerDB.dist

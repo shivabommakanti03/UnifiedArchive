@@ -1,0 +1,43 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  vars:
+    root_bin_scripts:
+    - ppdsetup
+    - platform-setup
+    - platform-settings
+  tasks:  
+  - name: Creating isro platform required directories
+    file:
+      path: "{{ item }}"
+      state: directory
+      owner: root
+      group: root
+      mode: 0700
+    loop:
+      - /root/setup/isro-platform
+      - /root/setup/pinnacle-installers
+      - /root/setup/playbooks/files
+      - /root/setup/platform-installers
+  - name: Copy over new /root/bin/ scripts to target VM
+    copy:
+      src: "files/{{ item }}"
+      dest: /root/bin/
+      mode: 0500
+      owner: root
+      group: root
+    loop: "{{ root_bin_scripts }}"
+  - name: Download firmware files
+    get_url:
+      url: "{{ item }}"
+      dest: /root/setup/platform-installers/
+    loop:
+      - http://ServerIP/shared_files/firmware/oracle/x6-2/sw-2.4.1/p29813919_241_Generic.zip
+  - name: Copy over Configure playbooks to target VM
+    copy:
+      src: "{{ item }}"
+      dest: /root/setup/playbooks/
+    loop:
+      - files/configure-server.yml
+      - files/configure-all.yml
+      - files/add-certs.yml

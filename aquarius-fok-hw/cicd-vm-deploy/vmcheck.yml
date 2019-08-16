@@ -1,0 +1,9 @@
+---
+- hosts: cicd-vm-host
+  become_user: vmowner
+  vars:
+    ai_master_vm_name: AI_MASTER_VM_DNS
+    cicd_build_vm_name: cicd_build_fok
+  tasks:
+  - name: Verify AI_MASTER_VM_DNS is running
+    shell: "vboxmanage list runningvms | grep {{ ai_master_vm_name }}"

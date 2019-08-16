@@ -1,0 +1,5 @@
+---
+- hosts: professional
+  roles:
+    - nfs-server
+    - ldap-server

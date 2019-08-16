@@ -1,0 +1,3 @@
+add_pinn_user.pl -> Perl version of add_pinn_user.  Can be renamed to add_pinn_user.  Should be located in /root/bin
+	cp perl/add_pinn_user.pl /usr/bin/add_pinn_user
+	chmod 700 /usr/bin/add_pinn_user

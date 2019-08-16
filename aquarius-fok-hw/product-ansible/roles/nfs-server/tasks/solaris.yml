@@ -1,0 +1,74 @@
+---
+# Solaris specific nfs-server tasks
+
+- name: Make ppdsetup
+  copy:
+    src: files/root/bin/ppdsetup
+    dest: /root/bin/ppdsetup
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Check zpool ppd_pool
+  command: zpool list ppd_pool
+  register: ppd_pool
+  changed_when: False
+  failed_when:
+    - ppd_pool is failed
+    - "'cannot open \\'ppd_pool\\': no such pool' not in ppd_pool.stderr"
+
+- name: Get disk count
+  shell: >
+    format </dev/null |gsed -e '/^[[:space:]]\+[0-9]\+\.[[:space:]]/!d' |wc -l
+  register: disk_count
+  changed_when: False
+
+- name: Check single disk mounts
+  command:  zfs list -H rpool/PrimaryPatientData rpool/files
+  register: rpool_mounts
+  ignore_errors: True
+  when: disk_count.stdout|int == 1
+  changed_when: False
+
+- name: ppdsetup
+  command: bash /root/bin/ppdsetup
+  when: ( ppd_pool.rc > 0 and disk_count.stdout|int > 1 ) or
+        ( disk_count.stdout|int == 1 and rpool_mounts.rc > 0 )
+
+- name: Get pools for shares
+  shell: df {{ item }} | cut -d"(" -f2 | cut -d")" -f1 | tr -d " "
+  register: share_pools
+  changed_when: False
+  loop:
+    - "/files"
+    - "/export"
+    - "/PrimaryPatientData"
+
+- name: Share shares
+  zfs:
+    name: "{{ item.stdout }}"
+    state: present
+    extra_zfs_properties:
+      share: path={{ item.item }},prot=nfs
+      share.nfs: on
+      share.nfs.anon: 0
+      share.nfs.sec.sys.rw: clients
+  loop: "{{ share_pools.results }}"
+  register: share_path
+  # failed_when:
+  #   - share_path is failed
+  #   - "'multiple shares with same path exist: ' + item.item + ' in ' not in share_path.msg"
+
+- name: Enable NFS services
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - "svc:/network/nfs/status:default"
+    - "svc:/network/nfs/nlockmgr:default"
+    - "svc:/network/nfs/cbd:default"
+    - "svc:/network/nfs/mapid:default"
+    - "svc:/network/nfs/client:default"
+    - "svc:/network/nfs/server:default"
+    - "svc:/network/nfs/rquota:default"

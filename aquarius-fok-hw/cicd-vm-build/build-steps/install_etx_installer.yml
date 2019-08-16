@@ -1,0 +1,33 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  tasks:
+  - name: Create platform-installers folder
+    file:
+      path: /root/setup/platform-installers/
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+  - name: Download ETX tar files
+    get_url:
+      url: "{{ item }}"
+      dest: /root/setup/platform-installers/
+    loop:
+      - http://ServerIP/shared_files/isos/etxcn-12.0.0.5410-solaris-x64.tar.gz
+      - http://ServerIP/shared_files/isos/etxsvr-12.0.0.5410-solaris-x64.tar.gz
+      - http://ServerIP/shared_files/isos/ETXRuntime-12.0.0.5412-HF1.zip
+      - http://ServerIP/shared_files/isos/filters.tar.gz
+  - name: Move ETX server and connection node response files to target 
+    copy:
+      src: "{{ item }}"
+      dest: /root/setup/platform-installers/
+    loop:
+      - files/etxcn12.response.template
+  - name: Move ETX commands to target
+    copy:
+      src: "{{ item }}"
+      dest: /root/setup/playbooks/
+    loop:
+      - files/add-etxsvr-12.yml
+      - files/add-etxcn-12.yml

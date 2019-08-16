@@ -1,0 +1,56 @@
+The sync_ad.py script creates the ability to sync users from Active
+Directory directly into the Philips product, in conjunction with the
+remoteauth overlay that has been configured for slapd.  It will query the
+configured group in AD for a list of users to create in Pinnacle. It calls
+add_pinn_user.pl directly, so do not pre-create these users. Generally once
+the configuration is working it is expected that the sync_ad.py script will
+be executed periodically, for example from a cron job.  The configuration
+file is passed in via the -c argument.  I.e.:
+
+/path/to/sync_ad.py -c /path/to/provisioning.conf
+
+Configuration:
+-------------------------------------
+A sample configuration for the sync_ad.py script is provided.  It is named
+provisioning.conf.  There are several portions that will need to be modified
+to work on a deployment.  Configuration options starting with a ; are
+considered as commented out and ignored.
+
+--- Config directives that need modification ---
+------------------------------------------------
+In the [upstream] section:
+
+uri -> This parameter should be an LDAP URI that points to the AD server
+from which the group should be found.
+
+base -> the root of the LDAP DIT in the upstream AD server to query the AD
+group from
+
+starttls -> Should be set to yes or no, depending on the upstream AD
+configuration.  Controls whether or not to use the LDAPv3 startTLS
+operation on ldap:/// URIs
+
+tls_cacertfile -> If TLS is being used to connect to AD, points to the file
+which contains the CA certificate for the AD server so the cert can be
+validated.
+
+binddn -> The DN to use when binding to the AD server
+
+password -> The password to use in conjunction with the above binddn when
+binding to the AD server
+-----
+
+In the [handler] section:
+
+domain -> The AD domain that should be set in the user entries for
+remoteauth.  This should probably match the default AD domain configured
+for remoteauth.
+
+group_dn -> The DN of the group in AD from which to sync users into the
+Pinnacle application.
+-----
+
+In the [debug] section:
+
+level -> The debug level to use.  Defaults to info, can also be debug for
+fuller debugging information when troubleshooting.

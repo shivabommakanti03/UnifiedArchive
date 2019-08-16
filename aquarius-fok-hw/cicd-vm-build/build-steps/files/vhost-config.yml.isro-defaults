@@ -1,0 +1,12 @@
+---
+vhost_name: "{{ansible_fqdn}}"
+vhost_ssl_cert: /etc/apache2/2.4/{{ansible_fqdn}}cert.chained.pem
+vhost_ssl_key: /etc/apache2/2.4/{{ansible_fqdn}}key.pem
+extra_directives:
+tunnels:
+ - { frontend_prefix: "/etx", backend_url: "https://127.0.0.1:8443/etx", extra_pass_parameters: "retry=0"  }
+ - { frontend_prefix: "/etxcore", backend_url: "https://127.0.0.1:8443/etxcore", extra_pass_parameters: "retry=0" }
+ - { frontend_prefix: "/etxui", backend_url: "https://127.0.0.1:8443/etx/etxui", extra_pass_parameters: "retry=0" }
+ - { frontend_prefix: "/ws", backend_url: "https://127.0.0.1:6000/ws", extra_pass_parameters: "retry=0" }
+ - { frontend_prefix: "/socket.io", backend_url: "https://127.0.0.1:6000/socket.io", extra_pass_parameters: "retry=0" }
+ - { frontend_prefix: "/", backend_url: "https://127.0.0.1:8000/", extra_pass_parameters: "retry=0" }

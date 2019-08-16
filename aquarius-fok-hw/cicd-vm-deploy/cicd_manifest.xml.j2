@@ -1,0 +1,27 @@
+<!--
+
+ Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+
+-->
+<!DOCTYPE auto_install SYSTEM "file:///usr/share/install/ai.dtd.1">
+<auto_install>
+  <ai_instance name="default">
+    <target>
+      <logical>
+        <zpool name="rpool" is_root="true">
+          <filesystem name="export" mountpoint="/export"/>
+          <filesystem name="export/home"/>
+          <be name="solaris"/>
+        </zpool>
+      </logical>
+    </target>
+    <software type="ARCHIVE">
+      <source>
+                <file uri="{{ cicd_uar_uri }}" />
+      </source>
+        <software_data action="install">
+        <name>*</name>
+      </software_data>
+    </software>
+  </ai_instance>
+</auto_install>

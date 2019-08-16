@@ -1,0 +1,2 @@
+vmp162 ansible_port=2422 ansible_host=127.0.0.1 ansible_user=root
+pinnsol13 ansible_port=32034 ansible_host=127.0.0.1 ansible_user=root

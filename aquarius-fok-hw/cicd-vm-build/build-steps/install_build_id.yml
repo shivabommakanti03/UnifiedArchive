@@ -1,0 +1,13 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  vars:
+    build_id_path: /etc/pinnacle-server-build-id
+    build_id: "{{lookup('env', 'BUILD_SLUG')}}"
+    vm_build_root_prefix: "/home/vmowner/cicd-image-build/fok-ci"
+    vm_build_root: "{{vm_build_root_prefix}}/tmp/{{build_id}}"
+  tasks:
+  - name: Install build id
+    copy: src={{vm_build_root}}/build_id dest={{build_id_path}}
+
+  

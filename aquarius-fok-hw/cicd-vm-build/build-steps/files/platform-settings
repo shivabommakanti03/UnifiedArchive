@@ -1,0 +1,14 @@
+#!/bin/bash
+
+SERVERNAME=`hostname`
+if [ "$1" != "get" ]; then
+    echo "Invalid Argument: $1"
+    exit 1
+fi
+if [ "$2" == "db_server_hostname" ] || [ "$2" == "pinnacle_server_hostname" ] || [ "$2" == "fileshare_export_hostname" ] || [ "$2" == "fileshare_logical_hostname" ] || [ "$2" == "fileshare_physical_node_hostname" ]; then
+    echo "$SERVERNAME"
+    exit 0
+else
+    echo "Invalid Hostname Argument: $2"
+    exit 1
+fi

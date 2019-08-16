@@ -1,0 +1,7 @@
+---
+- import_playbook: configure-server.yml
+- import_playbook: configure-pinnacle-installer.yml
+- import_playbook: add-pinnacle.yml
+- import_playbook: configure-pinnacle-postinstall.yml
+- import_playbook: add-etxsvr-12.yml
+- import_playbook: add-etxcn-12.yml

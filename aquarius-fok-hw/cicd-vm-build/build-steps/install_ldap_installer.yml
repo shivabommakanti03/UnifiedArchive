@@ -1,0 +1,30 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  tasks:
+  - name: Create platform-installers folder
+    file:
+      path: /root/setup/platform-installers/
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+  - name: Create platform-installers folder
+    file:
+      path: /root/setup/platform-installers/symas
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+  - name: Download LDAP tar files
+    get_url:
+      url: "{{ item }}"
+      dest: /root/setup/platform-installers/symas
+    loop:
+      - http://ServerIP/shared_files/isos/Symas-OpenLDAP-gold-64-2.4.47.3.tgz
+  - name: Move new setup symas script files to target 
+    copy:
+      src: "{{ item }}"
+      dest: /root/setup/platform-installers/
+    loop:
+      - files/symas

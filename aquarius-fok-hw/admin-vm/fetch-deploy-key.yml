@@ -1,0 +1,13 @@
+---
+- hosts: cicd-vm-host
+  tasks:
+  - name: Fetch private key
+    fetch:
+      src: ~/ssh_deploy_keys/dev01/id_rsa
+      dest: ~/ssh_deploy_keys/dev01/
+      flat: yes
+  - name: Fetch public key
+    fetch:
+      src: ~/ssh_deploy_keys/dev01/id_rsa.pub
+      dest: ~/ssh_deploy_keys/dev01/
+      flat: yes

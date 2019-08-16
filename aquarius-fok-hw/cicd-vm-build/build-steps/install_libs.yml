@@ -1,0 +1,59 @@
+---
+- hosts: cicd-vm-build-instance
+  become: true
+  vars:
+    build_id: "{{lookup('env', 'BUILD_SLUG')}}"
+    vm_build_root_prefix: "/home/vmowner/cicd-image-build/fok-ci"
+    vm_build_root: "{{vm_build_root_prefix}}/tmp/{{build_id}}"
+    system_pkg_libs: >
+      cryptography requests sqlite-3 pyasn1 pyasn1-modules
+      library/python/jinja2 library/python/pyyaml
+      library/python/paramiko library/python/virtualenv
+      library/python/greenlet library/python/eventlet
+      library/python/python-ldap
+    python_pip_system_libs:
+    - gunicorn-19.9.0-py2.py3-none-any.whl
+    - ptyprocess-0.6.0-py2.py3-none-any.whl
+    - pexpect-4.7.0-py2.py3-none-any.whl
+    python_pip_ve_libs:
+    - pip-19.0.3-py2.py3-none-any.whl
+    - setuptools-41.0.0-py2.py3-none-any.whl
+    - ansible-2.7.10.tar.gz
+  tasks:
+  - name: Install system & python libs from OS repo
+    shell: pkg install --no-backup-be {{system_pkg_libs}}
+    # Use shell and not pkg module w/ loop so that all are installed at once.
+
+  - name: Create virtual env
+    shell: ssh localhost "virtualenv --system-site-packages /root/setup/ve-ansible"
+    # ssh is used to reset python related env vs. what ansible sets up. Bug in virtualenv?
+
+  - name: Move python pip libs to target
+    copy:
+      src: "files/{{ item }}"
+      dest: /tmp/
+    loop: "{{ python_pip_system_libs }}"
+
+  - name: Install python pip libs
+    pip: name=file:///tmp/{{item}}
+    loop: "{{ python_pip_system_libs }}"
+
+  - name: Clean up python pip libs from target
+    file: state=absent path=/tmp/{{item}}
+    loop: "{{ python_pip_system_libs }}"
+
+  - name: Move python pip ve libs to target
+    copy:
+      src: "files/{{ item }}"
+      dest: /tmp/
+    loop: "{{ python_pip_ve_libs }}"
+
+  - name: Install libs in to virtual env
+    pip: 
+      name: "/tmp/{{item}}"
+      virtualenv:  /root/setup/ve-ansible
+    loop: "{{ python_pip_ve_libs }}"
+
+  - name: Clean up python pip libs from target
+    file: state=absent path=/tmp/{{item}}
+    loop: "{{ python_pip_ve_libs }}"

@@ -1,0 +1,25 @@
+---
+# tasks file for solaris ldap-server
+
+- name: make response file
+  copy:
+    src: files/symas.response
+    dest: "{{ symas_tmp.diff.after.path }}/symas.response"
+    owner: root
+    group: root
+    mode: 0755
+
+- name: install ldap
+  svr4pkg:
+    name: "{{ item.split('.')[0] }}"
+    src: "{{ symas_tmp.diff.after.path }}/{{ item }}"
+    response_file: "{{ symas_tmp.diff.after.path }}/symas.response"
+    state: present
+    zone: "{{ ldap_zone | default('all') }}"
+  when:
+    - not ansible_check_mode
+    - item is regex(".pkg$")
+    - item is not search("client")
+    - item is not search("devel")
+    - item is not search("nonopt")
+  loop: "{{ ldap_tgz_result.files }}"

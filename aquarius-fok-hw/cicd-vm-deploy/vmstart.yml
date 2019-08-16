@@ -1,0 +1,8 @@
+---
+- hosts: cicd-vm-host
+  become_user: vmowner
+  tasks:
+  - name: Stop cicd-build-fok vm
+    command: vboxmanage controlvm  "cicd-build-fok" poweroff
+  - name: Start cicd-build-fok vm
+    command: vboxmanage startvm "cicd-build-fok"
